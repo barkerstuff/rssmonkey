@@ -30,7 +30,7 @@ def parseOpts():
             except PermissionError:
                 exit('Failed to make {}.  Please ensure you have write permissions to this directory.'.format(base))
 
-        exampletext = '''# Set the watch folder where to pick up torrents (applies to watch mode)
+        exampletext = '''# Set the default watch folder where to pick up torrents (applies to watch mode)
 #watch = /path/to/watchdir
 #
 # Time in seconds between refreshes in daemon mode
@@ -55,7 +55,7 @@ addmethod = "watch"
 #rsssource myotherfeed = "http://my.other/feed"
 #
 # Script to run after adding a torrent. __title will be replaced with the actual title
-onmatch = "command here"
+#onmatch = "command here"
 '''
         with open(optfile, 'w') as f:
             f.write(exampletext)
@@ -97,7 +97,7 @@ onmatch = "command here"
                 addmethod = 'watch'
             elif 'transmission' in line.lower():
                 addmethod = 'transmission'
-        if 'watch' in line.lower():
+        if 'watch = ' in line.lower():
             watch = line.split('=')[1].lstrip().rstrip()
         if 'onmatch' in line.lower():
             onmatch = line.split('=')[1].lstrip().rstrip().lstrip('"').rstrip('"')
@@ -118,7 +118,7 @@ def parseFilters():
                 exit('Failed to make {}.  Please ensure you have write permissions to this directory.'.format(base))
 
         exampletext = '''
-            # Name, Include, Exclude, rssfeed, Mode
+            # Name, Include, Exclude, rssfeed, Mode, Watchdir (optional)
             # examplefilter, "Include This String" IncludeThisWord/AndThisWord, "Exclude This Phrase" ExcludeThisWord
             #
             # GameOfThrones, "Game Of Thrones"/1080, 720, https://url.example/feed, and
@@ -132,13 +132,14 @@ def parseFilters():
         exit('No configuration file found. Making an example at {}'.format(filterfile))
 
     class ParsedObj:
-        def __init__(self, name, include, exclude, url, andsearch, orsearch):
+        def __init__(self, name, include, exclude, url, andsearch, orsearch, watch):
             self.name = name
             self.include = include
             self.exclude = exclude
             self.url = url
             self.andsearch = andsearch
             self.orsearch = orsearch
+            self.watch = watch
         def __repr__(self):
             return repr(self.name)
 
@@ -178,14 +179,24 @@ def parseFilters():
             if include != None:
                 exclude = [i.replace('"', '') for i in exclude]
 
-            parsed_filters.append(ParsedObj(name=name, include=include, exclude=exclude, url=url, andsearch=andsearch, orsearch=orsearch))
+            # Get watch folder
+            try:
+                parsed = line.split(',')[5].lstrip().rstrip()
+                if path.isdir(parsed):
+                    watch = parsed
+                else:
+                    watch = None
+            except IndexError:
+                watch = None
+            parsed_filters.append(ParsedObj(name=name, include=include, exclude=exclude, url=url, andsearch=andsearch, orsearch=orsearch, watch=watch))
 
     if len(parsed_filters) == 0:
         print('No filter found.  Please add some to {}'.format(filterfile))
     return parsed_filters
 
 def buildSubProcess(fltr, Options):
-    subprocess_list = ['monkeygrab.py']
+    execdir = path.dirname(__file__)
+    subprocess_list = [execdir + sep + 'monkeygrab.py']
 
     # Caching options
     if Options.cacherss:
@@ -207,15 +218,27 @@ def buildSubProcess(fltr, Options):
     else:
         subprocess_list.append('--andsearch')
 
+    # Add torrent addition method
+    if Options.addmethod == 'watch':
+        if fltr.watch == None:
+            subprocess_list.extend(['--watch', Options.watch])
+        else:
+            subprocess_list.extend(['--watch', fltr.watch])
+
+
     # Add completion method
     if Options.onmatch != None:
         subprocess_list.extend(['--onmatch', Options.onmatch])
 
     # Add RSS feed
-    subprocess_list.append('--url')
+    subprocess_list.append('--feedurl')
     subprocess_list.append(Options.feeds[fltr.url])
 
     exit(subprocess_list)
+    try:
+        subprocess.call(subprocess_list)
+    except ChildProcessError:
+        print('Failed to call monkeygrab.py.', E)
 
 def main():
 
