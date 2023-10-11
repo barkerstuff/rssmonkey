@@ -9,6 +9,7 @@ from os import sep
 from time import sleep
 from tempfile import gettempdir
 from datetime import datetime
+import re
 
 done_file = path.expanduser('~') + sep + '.local' + sep + 'rssmonkey.downloaded'
 
@@ -52,7 +53,9 @@ def parserInit():
 
 
 def getFeed(url):
-    savefile = gettempdir() + sep + 'rssmonkey_last'
+    baseurl = re.findall('http[s]?://[A-Za-z0-9\.]*', url)[0]
+    domain = re.sub(r'http[s]?://', '', baseurl)
+    savefile = gettempdir() + sep + '{}.last'.format(domain)
 
     def saveFeed(text, savefile):
         global lasttime
@@ -85,10 +88,10 @@ def getFeed(url):
         deltatime = nowtime - lasttime
         elapsed = deltatime.total_seconds()
         if elapsed > args.cacheexpiry:
-            print('Redownloading as beyond cache expiry time!')
+            print('Redownloading from {} as beyond cache expiry time!'.format(domain))
             text = dlFeed(url, savefile)
         else:
-            print('RETURNED FROM CACHE!')
+            print('Returned from cache FOR {}!'.format(domain))
             text = loadFeed(savefile)
     else:
         text = dlFeed(url, savefile)
