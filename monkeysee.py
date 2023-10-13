@@ -13,9 +13,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dry', action='store_true', help='Do not download the torrent file or send to the download client.')
 parser.add_argument('--watch', action='store_true', help='Use the watch folder method to add downloads')
 parser.add_argument('--daemon', action='store_true', help='Constantly refresh the given feed(s) at a specified interval. Defaults to 15 minutes.')
-parser.add_argument('--verbose', action='store_true', help='Provide extra runtime feedback.')
+#parser.add_argument('--verbose', action='store_true', help='Provide extra runtime feedback.')
 parser.add_argument('--refresh', type=int, help='Overrides the default refresh interval in daemon mode.  This should be specified in seconds.')
-parser.add_argument('--ignorecompleted', action='store_true', help='Do not ignore files that have already been downloaded.')
+parser.add_argument('--downloadcompleted', action='store_true', help='Do not ignore files that have already been downloaded.')
 args = parser.parse_args()
 
 filterfile = path.expanduser('~') + sep + '.config' + sep + 'rssmonkey' + sep + 'filters'
@@ -106,6 +106,10 @@ addmethod = "watch"
             feeds[fields[1]] = fields[2].lstrip('"').rstrip('"')
 
     Options = globalOpts(cacherss=cacherss, cacheexpiry=cacheexpiry, daemon=daemon, addmethod=addmethod, watch=watch, feeds=feeds, onmatch=onmatch)
+
+    if daemon:
+        args.daemon = True
+
     return Options
 
 def parseFilters():
@@ -218,6 +222,10 @@ def buildSubProcess(fltr, Options):
     else:
         subprocess_list.append('--andsearch')
 
+    # Add the match completed option if to be set
+    if args.matchcompleted:
+        subprocess_list.append('--matchcompleted')
+
     # Add torrent addition method
     if Options.addmethod == 'watch':
         if fltr.watch == None:
@@ -225,6 +233,9 @@ def buildSubProcess(fltr, Options):
         else:
             subprocess_list.extend(['--watch', fltr.watch])
 
+    # Add dry option (will still grab but will not send to client)
+    if args.dry:
+        subprocess_list.append('--dry')
 
     # Add completion method
     if Options.onmatch != None:
@@ -234,7 +245,6 @@ def buildSubProcess(fltr, Options):
     subprocess_list.append('--feedurl')
     subprocess_list.append(Options.feeds[fltr.url])
 
-    exit(subprocess_list)
     try:
         subprocess.call(subprocess_list)
     except ChildProcessError:
@@ -253,7 +263,6 @@ def main():
             exit()
         else:
             sleep(args.refresh)
-
 
 if __name__ == '__main__':
     main()

@@ -27,7 +27,7 @@ def parserInit():
     parser.add_argument('--orsearch', action='store_true', help='Use or logic for matches')
     parser.add_argument('--ignorecase', action='store_true', help='Ignore case')
     parser.add_argument('--ignorepunctuation', action='store_true', help='Ignore punctuation')
-    parser.add_argument('--ignorecompleted', action='store_true', help='Process files regardless of whether or not they are already downloaded.')
+    parser.add_argument('--matchcompleted', action='store_true', help='Process files regardless of whether or not they are already downloaded.')
     parser.add_argument('--cacherss', action='store_true', help='Cache last RSS query')
     parser.add_argument('--cacheexpiry', type=int, help='Refresh RSS feed cache after x seconds')
     parser.add_argument('--verbose', action='store_true')
@@ -116,7 +116,7 @@ def addToDownloaded(url):
         return True
 
 def alreadyDownloaded(url):
-    if args.ignorecompleted:
+    if args.matchcompleted:
         return False
     if not path.exists(done_file):
         print('No previous downloads file found.  Assuming all file are to be downloaded!')
