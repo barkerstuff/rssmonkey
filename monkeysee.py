@@ -8,6 +8,8 @@ from sys import exit
 import subprocess
 import argparse
 import re
+import logging
+from logging.handlers import RotatingFileHandler
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dry', action='store_true', help='Do not download the torrent file or send to the download client.')
@@ -20,6 +22,32 @@ args = parser.parse_args()
 
 filterfile = path.expanduser('~') + sep + '.config' + sep + 'rssmonkey' + sep + 'filters'
 optfile = path.expanduser('~') + sep + '.config' + sep + 'rssmonkey' + sep + 'options'
+
+# Logger setup
+if getuid() == 0:
+    logpath = '/var/log/rssmonkey'
+else:
+    logpath = path.expanduser('~') + sep + '.local' + sep + 'share' + sep + 'rssmonkey'
+if not path.isdir(logpath): mkdir(logpath)
+
+logger = logging.getLogger('rssmonkey')
+logger.setLevel(logging.INFO)
+logformatter = logging.Formatter('%(asctime)s - %(message)s')
+loghandler = RotatingFileHandler(logpath+sep+'rssmonkey.log', maxBytes=400000, backupCount=10)
+loghandler.setFormatter(logformatter)
+logger.addHandler(loghandler)
+
+def logPrint(level, message):
+    logmessage = '{}:{} - {}'.format(args.exec, level.upper(), message).replace('/n', '')
+    print(message)
+    if level == 'info':
+        logger.info(logmessage)
+    elif level == 'warning':
+        logger.warning(logmessage)
+    elif level == 'error':
+        logger.error(logmessage)
+    elif level == 'fatal':
+        logger.fatal(logmessage)
 
 def parseOpts():
     def makeFilterFile():
@@ -91,7 +119,7 @@ addmethod = "watch"
                 cacheexpiry = 350
                 print('Failed to parse cacheexpiry option. Please ensure it is in the format cacherss = NUMBER')
             except Exception as E:
-                print(E)
+                logPrint('fatal', E)
         if 'addmethod' in line.lower():
             if 'watch' in line.lower():
                 addmethod = 'watch'
@@ -164,7 +192,7 @@ def parseFilters():
             try:
                 mode = line.split(',')[4].lstrip().rstrip()
             except IndexError:
-                print('Could not determine whether the {} filter uses an \'OR\' or \'AND\' method. Assuming AND.'.format(name))
+                logPrint('info', 'Could not determine whether the {} filter uses an \'OR\' or \'AND\' method. Assuming AND.'.format(name))
                 mode = 'and'
 
             # Set bools to pass to functions to mimic the args. arguments taken by monkeygrab
@@ -195,7 +223,8 @@ def parseFilters():
             parsed_filters.append(ParsedObj(name=name, include=include, exclude=exclude, url=url, andsearch=andsearch, orsearch=orsearch, watch=watch))
 
     if len(parsed_filters) == 0:
-        print('No filter found.  Please add some to {}'.format(filterfile))
+        logPrint('fatal', 'No filters found.  Please add some to {}'.format(filterfile)); exit()
+
     return parsed_filters
 
 def buildSubProcess(fltr, Options):
@@ -245,10 +274,11 @@ def buildSubProcess(fltr, Options):
     subprocess_list.append('--feedurl')
     subprocess_list.append(Options.feeds[fltr.url])
 
+    logPrint('info', 'Calling monkeygrab.py: {}'.format(" ".join(subprocess_list)))
     try:
         subprocess.call(subprocess_list)
     except ChildProcessError:
-        print('Failed to call monkeygrab.py.', E)
+        logPrint('error', 'Failed to call monkeygrab.py.', E)
 
 def main():
 
@@ -257,7 +287,7 @@ def main():
 
     while True:
         for fltr in parsed_filters:
-            print('Querying {}'.format(fltr))
+            logPrint('info', 'Querying {}'.format(fltr))
             subprocess_list = buildSubProcess(fltr, Options)
         if not args.daemon:
             exit()
