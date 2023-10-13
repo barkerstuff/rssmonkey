@@ -276,9 +276,11 @@ def buildSubProcess(fltr, Options):
 
     logPrint('info', 'Calling monkeygrab.py: {}'.format(" ".join(subprocess_list)))
     try:
-        subprocess.call(subprocess_list)
+        output = subprocess.check_output(subprocess_list, text=True)
     except ChildProcessError:
         logPrint('error', 'Failed to call monkeygrab.py.', E)
+
+    logPrint('info', 'monkeygrab.py: {}'.format(output))
 
 def main():
 
