@@ -10,6 +10,7 @@ from time import sleep
 from tempfile import gettempdir
 from datetime import datetime
 import re
+from shutil import which
 
 done_file = path.expanduser('~') + sep + '.local' + sep + 'rssmonkey.downloaded'
 
@@ -22,7 +23,7 @@ def parserInit():
     parser.add_argument('--include', nargs='*', help='Positive strings to match. Separate by spaces with quotations for phrases.', type=str)
     parser.add_argument('--exclude', nargs='*', help='Negative strings to match. Separate by spaces with quotations for phrases.  Will remove a match if any are matched. Use quotation marks to pair strings of more words.', type=str)
     parser.add_argument('--watch', help='Send the torrent to a designed watch folder', type=str)
-    parser.add_argument('--transmission', help='Send the torrent to client via transmission API with watch string.', type=str)
+    parser.add_argument('--transmission', help='Send the torrent to client via transmission API. Specify the server and port with hostname:port', type=str)
     parser.add_argument('--andsearch', action='store_true', help='Use AND boolean logic for positives matches, i.e. both have to be present for a match.')
     parser.add_argument('--orsearch', action='store_true', help='Use or logic for matches')
     parser.add_argument('--ignorecase', action='store_true', help='Ignore case')
@@ -51,6 +52,18 @@ def parserInit():
         args.orsearch = True
         print('No search type specified.  Assuming an or search!')
 
+    if args.transmission:
+        if not shutil.which('transmission-remote'):
+            logPrint('fatal', 'Could not find transmission-remote in path. Exiting.'); exit()
+        try:
+            hostname = args.transmission.split(':')[0]
+        except IndexError:
+            print('Unable to deterime hostname for transmission.  Please pass the argument in the format of hostname:port, e.g. 127.0.0.1:9091')
+        try:
+            port = int(args.transmission.split(':')[1])
+        except IndexError:
+            print('Unable to deterime the port for transmission.  Please pass the argument in the format of hostname:port, e.g. 127.0.0.1:9091\nAssuming the port is 9091, which is the default.')
+            port = 9091
 
 def getFeed(url):
     baseurl = re.findall('http[s]?://[A-Za-z0-9\.]*', url)[0]
@@ -164,7 +177,17 @@ def sendToClient(url, title):
         return local_filename
 
     def transmissionMethod():
-        pass
+        torrent_path = getTorrentFile(url, gettempdir(), title)
+        subprocess_list = ['transmission-remote', args.transmission, '-a', torrent_path]
+        # If args.watch is passed with transmission method then actually download to here
+        printLog('warning', 'Reminder to self: CHANGE THE SYNTAX OF WATCH TO E.G. ENDPOINT, since it serves dual purpose!')
+        if args.watch:
+            subprocess_list.extend('-w', args.watch)
+        printLog('info', 'monkeygrab.py: passing the command {}'.format(subprocess_list))
+        try:
+            subprocess.call(subprocess_list)
+        except ChildProcessError as E:
+            printLog('fatal', E)
 
     def watchMethod(url, title):
         if args.verbose: print('Using watch folder method with {} as the destination'.format(args.watch))
@@ -172,6 +195,8 @@ def sendToClient(url, title):
 
     if not args.dry and args.watch:
         watchMethod(url, title)
+    if not args.dry and args.transmissionMethod:
+        transmissionMethod()
 
     if args.onmatch:
         sendNotification(title)
