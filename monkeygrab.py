@@ -6,16 +6,44 @@ from rss_parser import Parser as RSSParser
 from sys import exit
 from os import path
 from os import sep
+from os import getuid
+from os import mkdir
 from time import sleep
 from tempfile import gettempdir
 from datetime import datetime
 import re
 from shutil import which
+import logging
+from logging.handlers import RotatingFileHandler
 
 done_file = path.expanduser('~') + sep + '.local' + sep + 'rssmonkey.downloaded'
 
-# If calling directly then invoke parser
+# Logging setup
+if getuid() == 0:
+    logpath = '/var/log/rssmonkey.log'
+else:
+    logpath = path.expanduser('~') + sep + '.local' + sep + 'share' + sep + 'rssmonkey.log'
 
+logger = logging.getLogger('rssmonkey')
+logger.setLevel(logging.INFO)
+logformatter = logging.Formatter('%(asctime)s - %(message)s')
+loghandler = RotatingFileHandler(logpath, maxBytes=400000, backupCount=10)
+loghandler.setFormatter(logformatter)
+logger.addHandler(loghandler)
+
+def logPrint(level, message):
+    logmessage = '{} - {}'.format(level.upper(), message).replace('/n', '')
+    print(message)
+    if level == 'info':
+        logger.info(logmessage)
+    elif level == 'warning':
+        logger.warning(logmessage)
+    elif level == 'error':
+        logger.error(logmessage)
+    elif level == 'fatal':
+        logger.fatal(logmessage)
+
+# If calling directly then invoke parser
 def parserInit():
     global args
     parser = argparse.ArgumentParser(description='RSS to Torrent filter')
@@ -65,6 +93,12 @@ def parserInit():
             print('Unable to deterime the port for transmission.  Please pass the argument in the format of hostname:port, e.g. 127.0.0.1:9091\nAssuming the port is 9091, which is the default.')
             port = 9091
 
+def getUrlBase(url):
+    ''' Returns the domain name for a given feed, used for creating domain specific logging '''
+    baseurl = re.findall('http[s]?://[A-Za-z0-9\.]*', url)[0]
+    domain = re.sub(r'http[s]?://', '', baseurl)
+    return domain
+
 def getFeed(url):
     baseurl = re.findall('http[s]?://[A-Za-z0-9\.]*', url)[0]
     domain = re.sub(r'http[s]?://', '', baseurl)
@@ -104,7 +138,7 @@ def getFeed(url):
             print('Redownloading from {} as beyond cache expiry time!'.format(domain))
             text = dlFeed(url, savefile)
         else:
-            print('Returned from cache FOR {}!'.format(domain))
+            print('Returned from cache at {} FOR {}!'.format(savefile, domain))
             text = loadFeed(savefile)
     else:
         text = dlFeed(url, savefile)
@@ -169,7 +203,39 @@ def sendToClient(url, title):
     def getTorrentFile(url, dirbase, title):
         local_filename = dirbase + sep + title + '.torrent'
         print('Downloading torrent file to {}'.format(local_filename))
-        r = getUrl(url, stream=True)
+
+        # COOKIES!
+        # Get just the site name, without the domain for purpose of the cookie import
+        domain_base = getUrlBase(url).split('.')[0]
+        logPrint('info', 'Domain base for cookies: {}'.format(domain_base))
+        try:
+            import cookies
+        except:
+            logPrint('info', 'Failed to import cookie file. Does it exist? Not using cookies.')
+            cookies_imported = False
+        else:
+            cookies_imported = True
+            print('Cookie found for {}'.format(domain_base))
+
+        if cookies:
+            if cookies.sites.get(domain_base, None) == None:
+                logPrint('info', 'Cookies module imported, but unable to file appropriate dictionary entry for {}'.format(domain_base))
+                cookies_imported = False
+
+        # Matches for site specific overrides
+        match domain_base:
+            case 'filelist':
+                import sites.filelist
+                url = sites.filelist.handler(url)
+                logPrint('info', 'SITE SPECIFIC OVERRIDE ACTIVATED: {}'.format(domain_base))
+
+        if not cookies_imported:
+            r = getUrl(url, stream=True)
+        else:
+            r = getUrl(url, stream=True, cookies=cookies.sites[domain_base])
+
+        logPrint('info', 'URL for Matched Torrent: {}'.format(url))
+
         with open(local_filename, 'wb') as f:
             for chunk in r.iter_content(chunk_size=1024):
                 if chunk: # filter out keep-alive new chunks
@@ -195,7 +261,7 @@ def sendToClient(url, title):
 
     if not args.dry and args.watch:
         watchMethod(url, title)
-    if not args.dry and args.transmissionMethod:
+    if not args.dry and args.transmission:
         transmissionMethod()
 
     if args.onmatch:
@@ -269,7 +335,8 @@ def parseRSS(text):
             if not alreadyDownloaded(url):
                 titles.append(title)
                 urls.append(url)
-                print('Matched!: \n Item: {}\n Link: {}\n'.format(title, url))
+                #logPrint('info', getUrlBase(url))
+                logPrint('info', 'Matched!: \n Item: {}\n Link: {}\n'.format(title, url))
             else:
                 if args.verbose: print('{} has already been downloaded!'.format(title))
     return urls, titles
@@ -280,16 +347,16 @@ def main():
     def Loop():
         # Print run info
         def printInfo():
-            print('\nStarting filter run..')
+            #print('\nStarting filter run..')
             print('Include filter: {}'.format(args.include))
             print('Exclude filter: {}'.format(args.exclude))
             print('AndSearch: {}'.format(args.andsearch))
-            print('OrSearch: {}\n'.format(args.orsearch))
+            print('OrSearch: {}'.format(args.orsearch))
 
         printInfo()
 
         # Get raw feed
-        if args.verbose: print('Grabbing rss feed...', end='')
+        if args.verbose: logPrint('info', 'Grabbing rss feed...', end='')
         text = getFeed(args.feedurl)
 
         # Parse RSS to get URLs and match items
@@ -299,7 +366,7 @@ def main():
         if len(urls) > 0:
             counter = 1
             for title, url in zip(titles, urls):
-                if args.verbose: print('Sending URL {} of {} to client!'.format(counter, len(titles)))
+                logPrint('info', '\nSending URL {} of {} to client!'.format(counter, len(titles)))
                 counter += 1
                 sendToClient(url, title)
                 addToDownloaded(url)
