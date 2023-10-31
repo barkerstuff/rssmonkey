@@ -154,10 +154,10 @@ def addToDownloaded(url):
         line = '{}\n'.format(url)
         f.write(line); f.close
     except FileNotFoundError:
-        print('Could not open {} for writing.'.format(done_file))
+        logPrint('error', 'Could not open {} for writing.'.format(done_file))
         return False
     except OSError as E:
-        print('Generic error\n{}'.format(e))
+        logPrint('error', 'Generic error\n{}'.format(e))
         return False
     else:
         return True
@@ -194,11 +194,11 @@ def sendToClient(url, title):
         try:
             subprocess.call(command)
         except FileNotFoundError as F:
-            print(F)
+            logPrint('error', F)
         except ChildProcessError as E:
-            print(E); print(E.output)
+            logPrint('error', E); print(E.output)
         except Exception as E:
-            print(E)
+            logPrint('error', E)
 
     def getTorrentFile(url, dirbase, title):
         local_filename = dirbase + sep + title + '.torrent'
