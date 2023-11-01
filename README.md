@@ -27,3 +27,5 @@ Test transmission API call method for torrent addition
 ### Custom sites with overrides
 filelist
 
+# Requirements
+customtkinter (if using GUI configuration)
