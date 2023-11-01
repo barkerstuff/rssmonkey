@@ -58,6 +58,7 @@ def parseOpts():
             except PermissionError:
                 exit('Failed to make {}.  Please ensure you have write permissions to this directory.'.format(base))
 
+        # Default config base
         exampletext = '''# Set the default watch folder where to pick up torrents (applies to watch mode)
 #watch = /path/to/watchdir
 #
@@ -149,6 +150,7 @@ def parseFilters():
             except PermissionError:
                 exit('Failed to make {}.  Please ensure you have write permissions to this directory.'.format(base))
 
+        # Default filter configuration
         exampletext = '''
             # Name, Include, Exclude, rssfeed, Mode, Watchdir (optional)
             # examplefilter, "Include This String" IncludeThisWord/AndThisWord, "Exclude This Phrase" ExcludeThisWord

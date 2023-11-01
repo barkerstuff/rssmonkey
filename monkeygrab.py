@@ -228,6 +228,8 @@ def sendToClient(url, title):
                 import sites.filelist
                 url = sites.filelist.handler(url)
                 logPrint('info', 'SITE SPECIFIC OVERRIDE ACTIVATED: {}'.format(domain_base))
+            case '_':
+                pass
 
         if not cookies_imported:
             r = getUrl(url, stream=True)
