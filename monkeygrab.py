@@ -289,6 +289,8 @@ def doesItMatchAnd(title):
 
     matched = True
     for positive_string in args.include:
+        positive_string = positive_string.replace(' ', '')
+        #print(f"Testing if {title} in {positive_string}")
         if positive_string not in title:
             matched = False
             break
@@ -358,7 +360,7 @@ def main():
         printInfo()
 
         # Get raw feed
-        if args.verbose: logPrint('info', 'Grabbing rss feed...', end='')
+        if args.verbose: logPrint('info', 'Grabbing rss feed...' )
         text = getFeed(args.feedurl)
 
         # Parse RSS to get URLs and match items

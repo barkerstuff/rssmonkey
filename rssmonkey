@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+
+from sys import exit
+from monkeysee import *
+
+try:
+    import customtkinter
+except ModuleNotFoundError:
+    exit('Failed to import customtkinter.  Is it installed? Exiting.')
+
+# App appearance defaults
+#customtkinter.set_default_color_theme("dark-blue")  # Themes: "blue" (standard), "green", "dark-blue"
+#customtkinter.set_appearance_mode("system")  # default value
+customtkinter.set_appearance_mode("dark")
+
+class App(customtkinter.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("rssmonkey")
+        self.geometry("400x180")
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure((0, 1), weight=1)
+
+        print(Options) 
+        print(parsed_filters)
+        #self.checkbox_1 = customtkinter.CTkCheckBox(self, text="checkbox 1")
+        #self.checkbox_1.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
+        #self.checkbox_2 = customtkinter.CTkCheckBox(self, text="checkbox 2")
+        #self.checkbox_2.grid(row=1, column=0, padx=10, pady=(10, 0), sticky="w")
+        #self.button = customtkinter.CTkButton(self, text="my button", command=self.button_callback)
+        #self.button.grid(row=3, column=0, padx=10, pady=10, sticky="ew")
+
+        self.filterCheckBoxes()
+
+    def filterCheckBoxes(self):
+        checkboxes = []
+        for index, fltr in enumerate(parsed_filters):
+            checkboxes.append(customtkinter.CTkCheckBox(self, text="checkbox {}".format(index)))
+
+    def button_callback(self):
+        print("button pressed")
+
+def getFilters():
+    parsed_filters = parseFilters()
+    Options = parseOpts()
+    return Options, parsed_filters
+
+def main():
+    global Options, parsed_filters
+    Options, parsed_filters = getFilters()
+    app = App()
+    app.mainloop()
+
+if __name__ == '__main__':
+    main()

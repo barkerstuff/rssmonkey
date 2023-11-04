@@ -4,6 +4,9 @@ from os import path
 from os import sep
 from os import mknod
 from os import makedirs
+from os import getuid
+from os import mkdir
+
 from sys import exit
 import subprocess
 import argparse
