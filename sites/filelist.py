@@ -4,7 +4,8 @@
 def handler(url, chunkIt, local_filename, username='', password='', method='requestsession'):
     urlbase = 'https://filelist.io'
     from re import findall
-    # FileList needs cookies file and to transpose the url
+
+    # FileList needs to transpose the url
     #  https://filelist.io/details.php?id={}&hit=1
     #  -> https://filelist.io/download.php?id={}
     id = findall(r"id=[0-9]{1,9}", url)[0].replace('id=', '')

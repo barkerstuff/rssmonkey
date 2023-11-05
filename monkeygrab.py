@@ -209,6 +209,8 @@ def sendToClient(url, title):
             logPrint('error', E)
 
     def getTorrentFile(url, dirbase, title):
+
+        # Passed to custom handlers as well as function when needing to overrwrite login / session methods
         def chunkIt(r, local_filename):
             with open(local_filename, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=1024):
@@ -243,8 +245,11 @@ def sendToClient(url, title):
             case 'filelist':
                 # FL uses a session and uses its own download method in an established session
                 import sites.filelist
-                username = cookies.passes['filelist']['username']
-                password = cookies.passes['filelist']['password']
+                try:
+                    username = cookies.passes['filelist']['username']
+                    password = cookies.passes['filelist']['password']
+                except:
+                    logPrint('error', 'Could not parse username and password for filelist.  Please ensure this is in cookies.py in the FileList dictionary!')
                 url = sites.filelist.handler(url, chunkIt, local_filename, username, password, method='cookiesession')
                 logPrint('info', 'SITE SPECIFIC OVERRIDE ACTIVATED: {}'.format(domain_base))
 

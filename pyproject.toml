@@ -9,9 +9,10 @@ authors = [
 ]
 description = "Parses RSS feeds and passes them to torrent client via API or watch methods."
 readme = "README.md"
+version = "alpha 3"
 requires-python = ">=3.7"
-#keywords = ["one", "two"]
-license = {text ="GPL3"}
+keywords = ["BitTorrent", "RSS"]
+license = {text ="GPLv3"}
 classifiers = [
 #    "Framework :: Django",
     "Programming Language :: Python :: 3",
@@ -23,11 +24,13 @@ classifiers = [
 ]
 dependencies = [
     "rss-parser",
+    "html5lib",
+    "bs4",
 #    'importlib-metadata; python_version<"3.8"',
 ]
 dynamic = ["version"]
 
-#[project.optional-dependencies]
+[project.optional-dependencies]
 #pdf = ["ReportLab>=1.2", "RXP"]
 #rest = ["docutils>=0.3", "pack ==1.1, ==1.3"]
 
