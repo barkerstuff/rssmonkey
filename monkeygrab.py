@@ -8,6 +8,7 @@ from os import path
 from os import sep
 from os import getuid
 from os import mkdir
+from sys import exit
 from time import sleep
 from tempfile import gettempdir
 from datetime import datetime
@@ -15,6 +16,7 @@ import re
 from shutil import which
 import logging
 from logging.handlers import RotatingFileHandler
+import signal
 
 done_file = path.expanduser('~') + sep + '.local' + sep + 'rssmonkey.downloaded'
 
@@ -42,6 +44,12 @@ def logPrint(level, message):
         logger.error(logmessage)
     elif level == 'fatal':
         logger.fatal(logmessage)
+
+def goodbye(*args):
+    exit('Interrupt caught. Goodbye.')
+
+signal.signal(signal.SIGINT, goodbye)
+
 
 # If calling directly then invoke parser
 def parserInit():
@@ -201,7 +209,14 @@ def sendToClient(url, title):
             logPrint('error', E)
 
     def getTorrentFile(url, dirbase, title):
-        local_filename = dirbase + sep + title + '.torrent'
+        def chunkIt(r, local_filename):
+            with open(local_filename, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk: # filter out keep-alive new chunks
+                        f.write(chunk)
+            return local_filename
+
+        local_filename = dirbase + sep + title.rstrip().replace('\n', '') + '.torrent'
         print('Downloading torrent file to {}'.format(local_filename))
 
         # COOKIES!
@@ -215,34 +230,34 @@ def sendToClient(url, title):
             cookies_imported = False
         else:
             cookies_imported = True
-            print('Cookie found for {}'.format(domain_base))
 
-        if cookies:
+        if cookies_imported:
             if cookies.sites.get(domain_base, None) == None:
                 logPrint('info', 'Cookies module imported, but unable to file appropriate dictionary entry for {}'.format(domain_base))
                 cookies_imported = False
+            else:
+                print('Cookie found for {}'.format(domain_base))
 
         # Matches for site specific overrides
         match domain_base:
             case 'filelist':
+                # FL uses a session and uses its own download method in an established session
                 import sites.filelist
-                url = sites.filelist.handler(url)
+                username = cookies.passes['filelist']['username']
+                password = cookies.passes['filelist']['password']
+                url = sites.filelist.handler(url, chunkIt, local_filename, username, password, method='cookiesession')
                 logPrint('info', 'SITE SPECIFIC OVERRIDE ACTIVATED: {}'.format(domain_base))
+
+            # So far default method is fine for BTN and Emp
             case '_':
-                pass
-
-        if not cookies_imported:
-            r = getUrl(url, stream=True)
-        else:
-            r = getUrl(url, stream=True, cookies=cookies.sites[domain_base])
-
+                # Default handler
+                if not cookies_imported:
+                    r = getUrl(url, stream=True)
+                else:
+                    r = getUrl(url, stream=True, cookies=cookies.sites[domain_base])
+                local_filename = chunkIt(r, local_filename)
         logPrint('info', 'URL for Matched Torrent: {}'.format(url))
 
-        with open(local_filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk: # filter out keep-alive new chunks
-                    f.write(chunk)
-        return local_filename
 
     def transmissionMethod():
         torrent_path = getTorrentFile(url, gettempdir(), title)
@@ -346,6 +361,7 @@ def parseRSS(text):
     return urls, titles
 
 def main():
+
     parserInit()
 
     def Loop():
@@ -381,7 +397,6 @@ def main():
             Loop(); sleep(args.refresh)
     else:
         Loop()
-
 
 if __name__ == '__main__':
     main()

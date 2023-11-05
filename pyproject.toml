@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "RSS Monkey"
+authors = [
+    {name = "Jason Barker", email = ""},
+]
+description = "Parses RSS feeds and passes them to torrent client via API or watch methods."
+readme = "README.md"
+requires-python = ">=3.7"
+#keywords = ["one", "two"]
+license = {text ="GPL3"}
+classifiers = [
+#    "Framework :: Django",
+    "Programming Language :: Python :: 3",
+    #"Development Status :: 3 - Alpha",
+    #"License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+]
+dependencies = [
+    "rss-parser",
+#    'importlib-metadata; python_version<"3.8"',
+]
+dynamic = ["version"]
+
+#[project.optional-dependencies]
+#pdf = ["ReportLab>=1.2", "RXP"]
+#rest = ["docutils>=0.3", "pack ==1.1, ==1.3"]
+
+#[project.scripts]
+#my-script = "my_package.module:function"
+
